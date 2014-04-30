@@ -10,9 +10,11 @@ triggers:
     enabled: true
     on_present: /bin/true
     on_absent: /bin/true
+    no_repeat_on_same_state: true
   - name: call_url_2
     type: url
     enabled: false
     on_present: http://localhost:8080/present
     on_absent: http://localhost:8080/absent
+    no_repeat_on_same_state: true
 

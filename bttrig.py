@@ -12,6 +12,7 @@ except ImportError:
 ##############################################################################
 options = None
 config = {}
+trigger_last_state = {}
 
 ##############################################################################
 def exec_cmd(cmd):
@@ -40,21 +41,33 @@ def open_url(url):
 ##############################################################################
 def trigger(present):
     for trigger in config['triggers']:
+
         name = trigger['name']
-        if ! trigger['enabled']:
+
+        if not trigger['enabled']:
             logging.debug('trigger %s disabled' % name)
             continue
-        ttype = trigger['type']
+
         if present:
-            action = trigger['on_present']
+            action = 'on_present'
         else:
-            action = trigger['on_absent']
+            action = 'on_absent'
+
+        if trigger['no_repeat_on_same_state']:
+            if trigger_last_state[name] == action:
+                logging.info('skipping %s on %s' % (action, name))
+                continue
+            trigger_last_state[name] = action
+
+        ttype = trigger['type']
         if ttype == 'exec':
-            logging.info('triggering on_present on %s' % name)
-            exec_cmd(action)
+            logging.info('triggering %s on %s' % (action, name))
+            o = exec_cmd(trigger[action])
+            logging.debug('output:\n' + o)
         elif ttype == 'url':
-            logging.info('triggering on_absent on %s' % name)
-            open_url(action)
+            logging.info('triggering %s on %s' % (action, name))
+            o = open_url(trigger[action])
+            logging.debug('output:\n' + o)
 
 ##############################################################################
 def check_devices():
@@ -62,12 +75,12 @@ def check_devices():
     present = False
 
     pingcmd = config['bluetooth_ping_command']
-    if ! os.path.isabs(pingcmd):
-        pingcmd = os.path.join(os.path.join(os.path.dirname(__file__), pingcmd)
+    if not os.path.isabs(pingcmd):
+        pingcmd = os.path.join(os.path.join(os.path.dirname(__file__), pingcmd))
 
     for bt_dev in config['bluetooth_devices']:
         (ret, out) = exec_cmd('%s %s' % (pingcmd, bt_dev))
-        logging.debug(out.rstrip('\n'))
+        logging.debug('output:\n' + out.rstrip('\n'))
         if ret:
             logging.debug('%s not available' % bt_dev)
         else:
@@ -77,7 +90,7 @@ def check_devices():
     if config['trigger_only_on_all']:
         if present_count == len(config['bluetooth_devices']):
             present = True
-    else
+    else:
         if present_count > 0:
             present = True
     
@@ -129,13 +142,16 @@ def main():
                   options.config)
             sys.exit(1)
     else:
-        cfn = 'vera_bt_trigger.yaml'
+        cfn = 'bttrig.yaml'
         for config_file in [os.path.join('/', 'etc', cfn),
                             os.path.expanduser('~/.%s' % cfn),
                             os.path.join(os.path.dirname(__file__), cfn)]:
             if os.path.exists(config_file):
                 config = load(file(config_file, 'r'), Loader=Loader)
                 break
+
+    for trigger in config['triggers']:
+        trigger_last_state[trigger['name']] = 'initial'
     
     if options.daemon:
         while True:
