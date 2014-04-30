@@ -1,3 +1,5 @@
 # Bluetooth trigger
-Trigger action if bluetooth devices are in range.
+Trigger action when bluetooth devices are in range.
+
+Triggers can be URL's or commands.
 
