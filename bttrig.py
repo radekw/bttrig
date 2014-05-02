@@ -62,7 +62,7 @@ def trigger(present):
         ttype = trigger['type']
         if ttype == 'exec':
             logging.info('triggering %s on %s' % (action, name))
-            o = exec_cmd(trigger[action])
+            (r, o) = exec_cmd(trigger[action])
             logging.debug('output:\n' + o)
         elif ttype == 'url':
             logging.info('triggering %s on %s' % (action, name))
