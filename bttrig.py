@@ -9,6 +9,12 @@ try:
 except ImportError:
     from yaml import Loader
 
+_prowl_available = True
+try:
+    import prowlpy
+except:
+    _prowl_available = False
+
 ##############################################################################
 options = None
 config = {}
@@ -20,6 +26,8 @@ def exec_cmd(cmd):
     p = subprocess.Popen(cmd, shell=True, env=os.environ, 
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     (stdout, stderr) = p.communicate()
+    logging.debug('output:\n' + stdout)
+    logging.debug('exit code: %s' % p.returncode)
     return (p.returncode, stdout)
 
 ##############################################################################
@@ -27,6 +35,7 @@ def open_url(url):
     try:
         r = urllib2.urlopen(url, timeout=10)
         o = r.read()
+        c = r.getcode()
     except urllib2.HTTPError, e:
         logging.error('HTTP_ERROR: %s (%s)' % (e.code, e.msg))
         return None
@@ -36,10 +45,33 @@ def open_url(url):
     except:
         logging.exception('ERROR: exception')
         return None
+    logging.debug('output:\n' + o)
+    logging.debug('return code: %s', c)
     return o
 
 ##############################################################################
+def prowl(msg, title='message'):
+    if not _prowl_available:
+        return
+    try:
+        apikey = config['prowl_api_key']
+    except:
+        return
+    p = prowlpy.Prowl(apikey)
+    try:
+        p.add('bttrig', title, msg)
+    except Exception:
+        logging.error('Prowl failed')
+    else:
+        logging.info('Prowl sent')
+
+##############################################################################
 def trigger(present):
+    if present:
+        action = 'on_present'
+    else:
+        action = 'on_absent'
+
     for trigger in config['triggers']:
 
         name = trigger['name']
@@ -47,11 +79,6 @@ def trigger(present):
         if not trigger['enabled']:
             logging.debug('trigger %s disabled' % name)
             continue
-
-        if present:
-            action = 'on_present'
-        else:
-            action = 'on_absent'
 
         if trigger['no_repeat_on_same_state']:
             if trigger_last_state[name] == action:
@@ -62,12 +89,12 @@ def trigger(present):
         ttype = trigger['type']
         if ttype == 'exec':
             logging.info('triggering %s on %s' % (action, name))
-            (r, o) = exec_cmd(trigger[action])
-            logging.debug('output:\n' + o)
+            exec_cmd(trigger[action])
+            prowl('triggered %s on %s' % (action, name))
         elif ttype == 'url':
             logging.info('triggering %s on %s' % (action, name))
-            o = open_url(trigger[action])
-            logging.debug('output:\n' + o)
+            open_url(trigger[action])
+            prowl('triggered %s on %s' % (action, name))
 
 ##############################################################################
 def check_devices():

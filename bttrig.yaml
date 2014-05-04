@@ -3,6 +3,7 @@ bluetooth_ping_command: hcitool_check.sh
 bluetooth_devices:
 - 00:11:22:33:44:55
 - 66:77:88:99:aa:bb
+prowl_api_key: 1234567890123456789012345678901234567890
 trigger_only_on_all: false
 triggers:
   - name: run_prog_1
